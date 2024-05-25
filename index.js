@@ -6,48 +6,8 @@ const config = {
       "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjM2Mzk3OSwidGltZXN0YW1wIjoxNzE2NTYxMzg4OTAzLCJ0eXBlIjoxLCJpYXQiOjE3MTY1NjEzODgsImV4cCI6MTcxNzE2NjE4OH0.Tn7VRq5O3r9tq3uoanEUMsyE4qQOs4JeH0coYWdAmsc",
   },
 };
-
-const duckId = [6331986, 6315935, 6317358, 6332603, 6344010, 6359924, 6309444];
-
-const harvestEgg = async () => {
-  try {
-    const listReload = await axios.get(
-      "https://api.quackquack.games/nest/list-reload",
-      config
-    );
-    const arrayOfNestInfor = listReload.data.data.nest;
-    const arrayOfNestReadyToHarvest = [];
-
-    arrayOfNestInfor.forEach((nestInfor) => {
-      if (nestInfor.status == 2) arrayOfNestReadyToHarvest.push(nestInfor.id);
-    });
-    console.log("Harvest-able Nests: ", arrayOfNestReadyToHarvest);
-
-    if (arrayOfNestReadyToHarvest.length > 0) {
-      await axios.post(
-        "https://api.quackquack.games/nest/collect",
-        { nest_id: arrayOfNestReadyToHarvest[0] },
-        config
-      );
-      console.log("Nest just harvested: ", arrayOfNestReadyToHarvest[0]);
-    }
-
-    const game = await axios.get(
-      "https://api.quackquack.games/balance/get",
-      config
-    );
-
-    await getBonus();
-    console.log("Balance: ", game.data.data.data[2].balance);
-    console.log(
-      "============================================================="
-    );
-    // const randomDuck = duckId[Math.floor(Math.random() * 7)];
-    // console.log("RANDOM_DUCK_ID: ", randomDuck);
-  } catch (error) {
-    console.log(error.message);
-  }
-};
+let hatched = false;
+const COMMON_EGG_TYPE = 2;
 
 const getBonus = async () => {
   try {
@@ -80,18 +40,73 @@ const getBonus = async () => {
   }
 };
 
-const layEgg = async (nestId, duckId) => {
+const harvestEgg = async () => {
   try {
-    const layEggPost = await axios.post(
-      "https://api.quackquack.games/nest/lay-egg",
-      { nest_id: 1032841, duck_id: 6359924 },
+    const listReload = await axios.get(
+      "https://api.quackquack.games/nest/list-reload",
       config
     );
-    console.log(layEggPost.data);
+    const arrayOfNestInfor = listReload.data.data.nest;
+    const arrayOfNestReadyToHarvest = [];
+    const rareNestDuck = [];
+
+    arrayOfNestInfor.forEach((nestInfor) => {
+      if (nestInfor.status == 2 && nestInfor.type_egg <= COMMON_EGG_TYPE)
+        arrayOfNestReadyToHarvest.push(nestInfor.id);
+      else {
+        if (nestInfor.type_egg !== null) {
+          rareNestDuck.push(nestInfor.id);
+        }
+      }
+    });
+    console.log("Harvest-able Nests: ", arrayOfNestReadyToHarvest);
+    console.log("Rare Nests: ", rareNestDuck);
+
+    if (arrayOfNestReadyToHarvest.length > 0) {
+      await axios.post(
+        "https://api.quackquack.games/nest/collect",
+        { nest_id: arrayOfNestReadyToHarvest[0] },
+        config
+      );
+      console.log("Nest just harvested: ", arrayOfNestReadyToHarvest[0]);
+    }
+
+    if (rareNestDuck.length > 0) {
+      if (!hatched) {
+        await axios.post(
+          "https://api.quackquack.games/nest/hatch",
+          { nest_id: rareNestDuck[0] },
+          config
+        );
+        hatched = true;
+        console.log("Hatching nest: ", rareNestDuck[0]);
+      } else {
+        const collected = await axios.post(
+          "https://api.quackquack.games/nest/collect-duck",
+          { nest_id: rareNestDuck[0] },
+          config
+        );
+        hatched = false;
+        console.log(
+          "Collected duck with rareness: ",
+          collected.data.data.total_rare
+        );
+      }
+    }
+
+    const game = await axios.get(
+      "https://api.quackquack.games/balance/get",
+      config
+    );
+
+    await getBonus();
+    console.log("Balance: ", game.data.data.data[2].balance);
+    console.log(
+      "============================================================="
+    );
   } catch (error) {
     console.log(error.message);
   }
 };
 
 setInterval(harvestEgg, 4000);
-//layEgg();
